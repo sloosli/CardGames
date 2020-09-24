@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing.Imaging;
 
 namespace WindowsGame.CardLogic
 {
@@ -10,10 +11,13 @@ namespace WindowsGame.CardLogic
         private readonly int amountOfDecks;
         private Queue<Card> playedDeck;
         private Queue<Card> usedDeck;
+        private List<Card> inGameDesk;
+
+        public int RemainCards => playedDeck.Count;
 
         public int Length => playedDeck.Count;
 
-        public CardsDeck(int amountOfDecks)
+        public CardsDeck(int amountOfDecks = 3)
         {
             if (amountOfDecks > 8)
             {
@@ -23,6 +27,7 @@ namespace WindowsGame.CardLogic
 
             playedDeck = new Queue<Card>();
             usedDeck = new Queue<Card>();
+            inGameDesk = new List<Card>();
 
             for (int i = 0; i < amountOfCards * this.amountOfDecks; i++)
             {
@@ -34,8 +39,6 @@ namespace WindowsGame.CardLogic
             Shuffle();
             Shuffle();
         }
-
-        public CardsDeck() : this(3) { }
 
         private void Shuffle()
         {
@@ -79,8 +82,17 @@ namespace WindowsGame.CardLogic
             if (playedDeck.Count == 0)
                 return null;
             Card card = playedDeck.Dequeue();
-            usedDeck.Enqueue(card);
+            inGameDesk.Add(card);
             return card;
+        }
+
+        public void ReturnCard(Card card)
+        {
+            if (inGameDesk.Contains(card))
+            {
+                inGameDesk.Remove(card);
+                usedDeck.Enqueue(card);
+            }
         }
     }
 }

@@ -3,24 +3,49 @@ using System.Collections.Generic;
 
 namespace WindowsGame.CardLogic
 {
+    public delegate void GetCardHandler(GetCardEventArgs args);
+
     class BlackJackHand
     {
-        private List<Card> cards;
-
-        public BlackJackHand()
+        public event GetCardHandler PlayerGetCardEvent;
+        private void OnPlayerGetCard(GetCardEventArgs args)
         {
+            PlayerGetCardEvent?.Invoke(args);
+        }
+
+        private readonly CardsDeck MotherDesk;
+        private readonly List<Card> cards;
+        public readonly int playerId;
+
+        public BlackJackHand(CardsDeck desk, int playerId)
+        {
+            this.MotherDesk = desk;
+            this.playerId = playerId;
             cards = new List<Card>();
         }
 
-        public void Add(Card card)
+        public void GetCard()
         {
+            Card card = MotherDesk.GetCard();
             cards.Add(card);
+            OnPlayerGetCard(
+                new GetCardEventArgs() 
+                { 
+                    PlayerId = playerId, 
+                    NewCard = card, 
+                    PlayerCards = cards.ToArray(),
+                    CardInDeck = MotherDesk.RemainCards
+                });
         }
 
         public int Count => cards.Count;
 
         public void Clear()
         {
+            foreach (Card card in cards)
+            {
+                MotherDesk.ReturnCard(card);
+            }
             cards.Clear();
         }
 
@@ -64,7 +89,6 @@ namespace WindowsGame.CardLogic
         #region Events
 
         public delegate void NotifyHandler(string result);
-        public delegate void GetCardHandler(Card card);
 
         public event NotifyHandler EndOfGameResultEvent;
         private void OnEndOfGameResult(string result)
@@ -72,41 +96,30 @@ namespace WindowsGame.CardLogic
             EndOfGameResultEvent?.Invoke(result);
         }
 
-        public event GetCardHandler DealerGetCardEvent;
         public event GetCardHandler PlayerGetCardEvent;
-        private void OnDealerGetCard(Card card)
+        private void OnPlayerGetCard(GetCardEventArgs args)
         {
-            DealerGetCardEvent?.Invoke(card);
-        }
-        private void OnPlayerGetCard(Card card)
-        {
-            PlayerGetCardEvent?.Invoke(card);
+            PlayerGetCardEvent?.Invoke(args);
         }
 
         #endregion
 
-        private CardsDeck mainDeck;
-
         private BlackJackHand playerHand;
         private BlackJackHand dealerHand;
+        private CardsDeck mainDeck;
 
         public int PlayerSum => playerHand.GetSum;
         public int DealerSum => dealerHand.GetSum;
 
         public bool GameOn { get; private set; }
 
-        public BlackJack()
-        {
-            mainDeck = new CardsDeck();
-            playerHand = new BlackJackHand();
-            dealerHand = new BlackJackHand();
-        }
-
-        public BlackJack(int amountOfDecks)
+        public BlackJack(int amountOfDecks = 3)
         {
             mainDeck = new CardsDeck(amountOfDecks);
-            playerHand = new BlackJackHand();
-            dealerHand = new BlackJackHand();
+            dealerHand = new BlackJackHand(mainDeck, 0);
+            dealerHand.PlayerGetCardEvent += OnPlayerGetCard;
+            playerHand = new BlackJackHand(mainDeck, 1);
+            playerHand.PlayerGetCardEvent += OnPlayerGetCard;
         }
 
         public void Start()
@@ -119,9 +132,6 @@ namespace WindowsGame.CardLogic
             PlayerGetCard();
             DealerGetCard();
             PlayerGetCard();
-
-            if (PlayerSum == 21) // BlackJack 
-                PlayerStop();
         }
 
         //TODO: Эту гадость надо переписать что бы было более читаемо
@@ -185,21 +195,17 @@ namespace WindowsGame.CardLogic
             if (!GameOn)
                 return;
 
-            Card card = mainDeck.GetCard();
+            playerHand.GetCard();
 
-            playerHand.Add(card);
-            OnPlayerGetCard(card);
-
-            if (PlayerSum >= 21 && !playerHand.DownGradeAce())
+            if (PlayerSum == 21)
+                PlayerStop();
+            if (PlayerSum > 21 && !playerHand.DownGradeAce())
                 PlayerStop();
         }
 
         private void DealerGetCard()
         {
-            Card card = mainDeck.GetCard();
-
-            dealerHand.Add(card);
-            OnDealerGetCard(card);
+            dealerHand.GetCard();
         }
         
         private void SetWin(BlackJackResult result)
@@ -242,7 +248,7 @@ namespace WindowsGame.CardLogic
                 case BlackJackResult.DealerOver21:
                     {
                         text = "У диллера перебор(" +
-                               Convert.ToString(PlayerSum) +
+                               Convert.ToString(DealerSum) +
                                "), вы победили!!!";
                         break;
                     }
@@ -258,5 +264,14 @@ namespace WindowsGame.CardLogic
             mainDeck.CheckDeks();
             OnEndOfGameResult(text);
         }
+    }
+
+    public class GetCardEventArgs : EventArgs
+    {
+        public int PlayerId { get; set; }
+        public Card[] PlayerCards { get; set; }
+        public Card NewCard { get; set; }
+        public int CardInDeck { get; set; }
+
     }
 }
