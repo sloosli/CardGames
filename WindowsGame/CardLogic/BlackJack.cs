@@ -222,12 +222,12 @@ namespace WindowsGame.CardLogic
                     }
                 case BlackJackResult.DealerBlackJack:
                     {
-                        text = "У диллера блекджек, вы проиграли";
+                        text = "У дилера блекджек, вы проиграли";
                         break;
                     }
                 case BlackJackResult.DealerHigher:
                     {
-                        text = "У диллера больше очков, вы проиграли";
+                        text = "У дилера больше очков, вы проиграли";
                         break;
                     }
                 case BlackJackResult.Drawn:
@@ -247,7 +247,7 @@ namespace WindowsGame.CardLogic
                     }
                 case BlackJackResult.DealerOver21:
                     {
-                        text = "У диллера перебор(" +
+                        text = "У дилера перебор(" +
                                Convert.ToString(DealerSum) +
                                "), вы победили!!!";
                         break;

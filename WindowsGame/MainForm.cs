@@ -17,17 +17,17 @@ namespace WindowsGame
     {
         BlackJack game;
         Thread gameAccess;
-        TextBox[] playersBoxes;
-        CardAnimation animation;
+        readonly LinkedList<CardAnimation> animations = new LinkedList<CardAnimation>();
 
         public MainForm()
         {
             InitializeComponent();
-            StopAction();
             SetStyle(ControlStyles.OptimizedDoubleBuffer |
                 ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.UserPaint, true);
             UpdateStyles();
+
+            StopAction();
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -36,24 +36,22 @@ namespace WindowsGame
 
             game.PlayerGetCardEvent += PlayerGetCardHandler;
             game.EndOfGameResultEvent += ResultHandler;
-
-            this.playersBoxes = new TextBox[] { textBoxDealerHand, textBoxPlayerHand };
         }
 
         private void MainForm_Paint(object sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
-            Debug.WriteLine("Вызов методa MainForm_Paint");
-            if (animation != null && animation.IsPlayed)
+            foreach (var animation in animations)
             {
                 g.DrawImageUnscaled(animation.card.Image, animation.Position);
-                animation.Move();
+                if(animation.IsPlayed)
+                    animation.Move();
             }
         }
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
-            gameAccess.Abort();
+            gameAccess?.Abort();
         }
 
         private void PlayerGetCardHandler(GetCardEventArgs args)
@@ -65,22 +63,22 @@ namespace WindowsGame
 
             var result = this.BeginInvoke(new GetCardHandler(SetNewCard), args);
             this.EndInvoke(result);
-            while (animation != null && animation.IsPlayed) ;
+            while (animations.Last() != null && animations.Last().IsPlayed) ;
         }
 
         private void SetNewCard(GetCardEventArgs args)
         {
-            playersBoxes[args.PlayerId].Text += args.NewCard.ToString() + "  ";
-            textBoxCardRemain.Text = args.CardInDeck.ToString();
-            animation = new CardAnimation(args.NewCard, 400, 400);
-        
+            cardCounterLabel.Text = args.CardInDeck.ToString();
+            int destX = args.PlayerCards.Length * 40,
+                destY = args.PlayerId == 0 ? 40 : this.Size.Height - 230;
+            animations.AddLast(new CardAnimation(args.NewCard, destX, destY));        
         }
 
         private void ResultHandler(string result)
         {
-            textBoxResult.Invoke((MethodInvoker)(() =>
-            textBoxResult.Text = result));
-            this.Invoke((MethodInvoker)(() => StopAction()));
+            this.Invoke(new MethodInvoker(StopAction));
+            MessageBox.Show(result, "Результат", MessageBoxButtons.OK);
+            animations.Clear();
         }
 
         private void StartAction()
@@ -89,10 +87,6 @@ namespace WindowsGame
             buttonGetCard.Enabled = true;
             buttonStop.Enabled = true;
             buttonDouble.Enabled = true;
-
-            textBoxDealerHand.Text = "";
-            textBoxPlayerHand.Text = "";
-            textBoxResult.Text = "";
         }
 
         private void StopAction()
@@ -146,7 +140,7 @@ namespace WindowsGame
     class CardAnimation
     {
         private const double AnimationTime = 500;
-        private const int xStart = 0,
+        private const int xStart = 600,
                           yStart = 0;
 
         public readonly Card card;
